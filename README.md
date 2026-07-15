@@ -1,11 +1,12 @@
 # AI Red Teamer
 
-An OWASP LLM Top 10 vulnerability scanner for LLM-integrated applications. It uses AWS Bedrock (Claude) to **generate** context-aware red team attack prompts, **launch** them against a target application, **analyze** the responses for vulnerabilities, and produce shareable HTML reports.
+An OWASP LLM Top 10 vulnerability scanner for LLM-integrated applications. Uses AWS Bedrock (Claude) to **generate** context-aware red team attack prompts, **fire** them at a target endpoint, **analyze** responses for vulnerabilities, and produce shareable HTML reports — with two scan modes: a standard breadth scan and an adaptive iterative scan.
 
 ## Features
 
-- **Context-aware prompt generation** — describe your app and the tool crafts realistic attacks tailored to it.
-- **OWASP LLM Top 10 coverage** — organized by category:
+- **Two scan modes** — Standard (breadth) and Iterative (adaptive, session-aware)
+- **Context-aware prompt generation** — describe your app and Claude crafts realistic, targeted attacks
+- **OWASP LLM Top 10 coverage** across 7 categories:
   - `LLM01` Prompt Injection
   - `LLM02` Insecure Output Handling
   - `LLM04` Model Denial of Service
@@ -13,63 +14,125 @@ An OWASP LLM Top 10 vulnerability scanner for LLM-integrated applications. It us
   - `LLM07` Insecure Plugin Design
   - `LLM08` Excessive Agency
   - `LLM09` Overreliance
-- **Automated attacking** — sends generated prompts to a target endpoint.
-- **AI-powered analysis** — scores each response and flags likely vulnerabilities.
-- **HTML reports** — self-contained reports saved under `reports/`.
-- **Simple web UI** — vanilla HTML/CSS/JS frontend served by the backend.
+- **Dual-model pipeline** — Claude Opus 4.8 generates attacks, Claude Sonnet 5 analyzes responses
+- **Real-time streaming** — results stream live via Server-Sent Events (SSE)
+- **HTML reports** — auto-saved after every scan, viewable and downloadable from the UI
+- **Burp-compatible header input** — paste raw headers directly from Burp Repeater
+
+## Scan Modes
+
+### Standard Scan
+Generate a batch of attack prompts upfront, review them, then fire all of them sequentially.
+
+1. Set **Prompts per category** (1–5)
+2. Click **Generate Prompts** — review in the Attack Prompts tab
+3. Click **Run Full Scan** — streams results live in the Scan Results tab
+
+### Iterative Scan
+Adaptive, session-aware scanning. No pre-generation needed — prompts are generated and mutated on the fly.
+
+1. Set **Max rounds per category** (2–10, default 5)
+2. Click **Iterative Scan**
+
+For each OWASP category:
+- **Round 1** — generates a fresh, context-aware attack
+- **If defended** → reads the app's refusal/response, mutates the technique, tries again (marked **Adaptive**)
+- **Stops early** as soon as a vulnerability is found for that category
+- Continues until vulnerable or max rounds exhausted
+
+Results show a round-by-round timeline per category. The model learns from each failed attempt — if direct injection was blocked, it automatically switches to roleplay, encoding, indirect injection, multi-step attacks, etc.
+
+| | Standard | Iterative |
+|---|---|---|
+| Pre-generate prompts | Yes | No |
+| Adapts to defenses | No | Yes |
+| Stops early on vuln | No | Yes (per category) |
+| Cost | Fixed | Variable (up to maxRounds × categories) |
 
 ## Architecture
 
 ```
 red-teamer/
-├── backend/          # Node.js + Express API
-│   ├── server.js     # API routes + static frontend serving
+├── backend/
+│   ├── server.js                # Express API + SSE endpoints
 │   └── lib/
-│       ├── bedrock.js          # AWS Bedrock client wrapper
-│       ├── promptGenerator.js  # OWASP prompt generation
-│       ├── attacker.js         # Sends attacks to target
-│       ├── analyzer.js         # Analyzes responses for vulnerabilities
-│       └── reports.js          # HTML report generation
-├── frontend/         # Static web UI (index.html, app.js, style.css)
-└── reports/          # Generated HTML reports (git-ignored)
+│       ├── bedrock.js           # AWS Bedrock Converse API client
+│       ├── promptGenerator.js   # Standard + adaptive prompt generation
+│       ├── iterativeAttacker.js # Iterative session loop (per-category)
+│       ├── attacker.js          # HTTP attack sender with {{INPUT}} injection
+│       ├── analyzer.js          # Response vulnerability analysis + summary
+│       └── reports.js           # HTML report generation and storage
+├── frontend/
+│   ├── index.html
+│   ├── app.js
+│   └── style.css
+└── reports/                     # Auto-saved HTML reports (git-ignored)
 ```
+
+## API Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/health` | Backend status + active models |
+| `GET` | `/api/categories` | OWASP category metadata |
+| `POST` | `/api/generate-prompts` | Generate attack prompts for selected categories |
+| `POST` | `/api/run-attack` | Send a single attack to the target |
+| `POST` | `/api/analyze` | Analyze a single response for vulnerabilities |
+| `POST` | `/api/scan` | Full scan — SSE stream of attack + analysis results |
+| `POST` | `/api/iterative-scan` | Iterative adaptive scan — SSE stream per round |
+| `GET` | `/api/reports` | List saved report metadata |
 
 ## Prerequisites
 
 - Node.js 18+
-- AWS account with Amazon Bedrock access and the target Claude model enabled
-- AWS credentials available in your environment (via `aws configure` / `AWS_PROFILE`, or static keys)
+- AWS account with Amazon Bedrock access
+- Both models enabled in your region:
+  - `us.anthropic.claude-opus-4-8` (generator)
+  - `us.anthropic.claude-sonnet-5` (analyzer)
+- AWS credentials configured via `aws configure` or `AWS_PROFILE`
 
 ## Setup
 
 ```bash
 cd backend
 npm install
-cp .env.example .env   # then edit as needed
+```
+
+No `.env` file is required — all settings have defaults. Create one from the example only if you need to override:
+
+```bash
+cp .env.example .env
 ```
 
 ### Environment variables
 
-See `backend/.env.example`. Key settings:
-
-| Variable | Description |
-| --- | --- |
-| `AWS_REGION` | Bedrock region (e.g. `us-east-1`) |
-| `AWS_PROFILE` | Optional named AWS profile |
-| `BEDROCK_MODEL_ID` | Model used for generation & analysis |
-| `PORT` | Backend port (default `3001`) |
-| `MAX_PROMPTS_PER_CATEGORY` | Max prompts generated per category |
-| `ATTACK_TIMEOUT_MS` | Per-attack request timeout |
+| Variable | Default | Description |
+|---|---|---|
+| `AWS_REGION` | `us-east-1` | Bedrock region |
+| `AWS_PROFILE` | _(shell default)_ | Named AWS profile |
+| `GENERATOR_MODEL_ID` | `us.anthropic.claude-opus-4-8` | Model for attack generation |
+| `ANALYZER_MODEL_ID` | `us.anthropic.claude-sonnet-5` | Model for response analysis |
+| `PORT` | `3001` | Backend server port |
+| `MAX_PROMPTS_PER_CATEGORY` | `3` | Default prompts per category |
+| `ATTACK_TIMEOUT_MS` | `30000` | Per-attack HTTP timeout |
 
 ## Running
 
 ```bash
 cd backend
-npm start        # or: npm run dev  (watch mode)
+npm start        # production
+npm run dev      # watch mode (Node.js 18+)
 ```
 
-Then open the UI at `http://localhost:3001`.
+Open **http://localhost:3001** in your browser.
+
+## Usage
+
+1. **Application Context** — describe the target LLM app in plain English (what it does, what data it accesses, what it should/shouldn't do)
+2. **Target Request** — enter the endpoint URL, HTTP method, headers (Burp format supported), and JSON body with `{{INPUT}}` where the attack prompt should be injected
+3. **Select categories** — pick specific OWASP categories or leave all unchecked to test all 7
+4. **Choose scan mode** and run
 
 ## Disclaimer
 
-This tool is intended for **authorized security testing only**. Only run it against applications you own or have explicit permission to test. You are responsible for complying with all applicable laws and terms of service.
+This tool is intended for **authorized security testing only**. Only run it against applications you own or have explicit written permission to test. You are responsible for complying with all applicable laws and terms of service.
