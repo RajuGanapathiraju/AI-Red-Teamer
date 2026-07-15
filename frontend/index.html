@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Red Teamer — OWASP LLM Top 10 Scanner</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── HEADER ─────────────────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon">⬡</span>
+        <div class="logo-text">
+          <span class="logo-title">AI Red Teamer</span>
+          <span class="logo-subtitle">OWASP LLM Top 10 · Automated Vulnerability Scanner</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="status-label" id="statusLabel">Connecting…</span>
+    </div>
+  </header>
+
+  <!-- ── MAIN LAYOUT ─────────────────────────────────────────────────────── -->
+  <div class="layout">
+
+    <!-- ── LEFT PANEL: Configuration ──────────────────────────────────── -->
+    <aside class="sidebar">
+      <div class="sidebar-inner">
+
+        <!-- App Context -->
+        <div class="section">
+          <div class="section-header">
+            <span class="section-icon">🎯</span>
+            <h2>Application Context</h2>
+          </div>
+          <label class="field-label">Describe the target LLM application</label>
+          <textarea id="appContext" class="textarea" rows="5"
+            placeholder="e.g. A customer support chatbot for an e-commerce platform. Users ask questions about orders, returns, and products. The system has access to order lookup and refund tools. Admin commands are restricted."></textarea>
+        </div>
+
+        <!-- Target Request -->
+        <div class="section">
+          <div class="section-header">
+            <span class="section-icon">🔗</span>
+            <h2>Target Request</h2>
+          </div>
+          <p class="hint">Use <code class="code-pill">{{INPUT}}</code> as the placeholder where the attack prompt is injected.</p>
+
+          <div class="row-2">
+            <div>
+              <label class="field-label">Method</label>
+              <select id="reqMethod" class="select">
+                <option value="POST">POST</option>
+                <option value="GET">GET</option>
+                <option value="PUT">PUT</option>
+                <option value="PATCH">PATCH</option>
+              </select>
+            </div>
+            <div style="flex:1">
+              <label class="field-label">URL</label>
+              <input id="reqUrl" type="text" class="input" placeholder="https://api.example.com/chat" />
+            </div>
+          </div>
+
+          <label class="field-label">Headers <span class="optional">(Burp raw format — paste directly)</span></label>
+          <textarea id="reqHeaders" class="textarea mono" rows="6"
+            placeholder="Content-Type: application/json&#10;Authorization: Bearer YOUR_TOKEN&#10;Referer: https://example.com/"></textarea>
+
+          <label class="field-label">Body <span class="optional">(JSON with {{INPUT}})</span></label>
+          <textarea id="reqBody" class="textarea mono" rows="4"
+            placeholder='{"message": "{{INPUT}}", "session_id": "abc123"}'></textarea>
+
+          <label class="field-label">Query Params <span class="optional">(JSON, optional)</span></label>
+          <textarea id="reqParams" class="textarea mono" rows="2"
+            placeholder='{"q": "{{INPUT}}"}'></textarea>
+        </div>
+
+        <!-- OWASP Categories -->
+        <div class="section">
+          <div class="section-header">
+            <span class="section-icon">🛡️</span>
+            <h2>OWASP Categories</h2>
+          </div>
+          <p class="hint">Select categories to test. Leave all unchecked to test all.</p>
+          <div id="categoryList" class="category-list">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Prompts per category -->
+        <div class="section">
+          <div class="section-header">
+            <span class="section-icon">⚡</span>
+            <h2>Scan Settings</h2>
+          </div>
+          <label class="field-label">Prompts per category <span class="optional">(standard scan)</span></label>
+          <div class="row-2 align-center">
+            <input id="countPerCategory" type="range" min="1" max="5" value="3" class="range" />
+            <span id="countLabel" class="count-label">3</span>
+          </div>
+          <label class="field-label" style="margin-top:14px">Max rounds per category <span class="optional">(iterative scan)</span></label>
+          <div class="row-2 align-center">
+            <input id="maxRounds" type="range" min="2" max="10" value="5" class="range" />
+            <span id="maxRoundsLabel" class="count-label">5</span>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="actions">
+          <button id="btnGenerate" class="btn btn-primary" onclick="generatePrompts()">
+            <span class="btn-icon">⚙</span> Generate Prompts
+          </button>
+          <button id="btnScan" class="btn btn-danger" onclick="runFullScan()" disabled>
+            <span class="btn-icon">▶</span> Run Full Scan
+          </button>
+          <button id="btnIterative" class="btn btn-iterative" onclick="runIterativeScan()">
+            <span class="btn-icon">⟳</span> Iterative Scan
+          </button>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- ── RIGHT PANEL: Results ─────────────────────────────────────────── -->
+    <main class="main">
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="prompts" onclick="switchTab('prompts')">
+          Attack Prompts <span class="tab-badge" id="badgePrompts">0</span>
+        </button>
+        <button class="tab" data-tab="results" onclick="switchTab('results')">
+          Scan Results <span class="tab-badge" id="badgeResults">0</span>
+        </button>
+        <button class="tab" data-tab="iterative" onclick="switchTab('iterative')">
+          Iterative Scan <span class="tab-badge" id="badgeIterative">0</span>
+        </button>
+        <button class="tab" data-tab="summary" onclick="switchTab('summary')">
+          Summary Report
+        </button>
+        <button class="tab" data-tab="reports" onclick="switchTab('reports'); loadReportsList()">
+          Past Reports <span class="tab-badge" id="badgeReports">0</span>
+        </button>
+      </div>
+
+      <!-- ── TAB: Prompts ──────────────────────────────────────────── -->
+      <div class="tab-content active" id="tab-prompts">
+        <div class="empty-state" id="emptyPrompts">
+          <div class="empty-icon">🔐</div>
+          <p class="empty-title">No prompts generated yet</p>
+          <p class="empty-desc">Configure your target application and click <strong>Generate Prompts</strong> to create context-aware attack prompts for each OWASP LLM category.</p>
+        </div>
+        <div id="promptsList" class="prompts-list"></div>
+      </div>
+
+      <!-- ── TAB: Results ──────────────────────────────────────────── -->
+      <div class="tab-content" id="tab-results">
+        <div class="empty-state" id="emptyResults">
+          <div class="empty-icon">📊</div>
+          <p class="empty-title">No scan results yet</p>
+          <p class="empty-desc">Generate prompts then click <strong>Run Full Scan</strong> to test for vulnerabilities.</p>
+        </div>
+
+        <!-- Progress bar -->
+        <div id="scanProgress" class="scan-progress hidden">
+          <div class="progress-header">
+            <span id="progressLabel">Scanning…</span>
+            <span id="progressCount">0 / 0</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-bar" id="progressBar" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div id="resultsList" class="results-list"></div>
+      </div>
+
+      <!-- ── TAB: Iterative Scan ──────────────────────────────────── -->
+      <div class="tab-content" id="tab-iterative">
+        <div class="empty-state" id="emptyIterative">
+          <div class="empty-icon">⟳</div>
+          <p class="empty-title">No iterative scan yet</p>
+          <p class="empty-desc">Click <strong>Iterative Scan</strong> to run an adaptive session for each OWASP category. If round 1 doesn't trigger a vulnerability, the AI mutates its technique and tries again — up to the max rounds you set.</p>
+        </div>
+
+        <!-- Iterative progress bar -->
+        <div id="iterProgress" class="scan-progress hidden">
+          <div class="progress-header">
+            <span id="iterProgressLabel">Scanning…</span>
+            <span id="iterProgressCount">0 / 0</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-bar" id="iterProgressBar" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div id="iterCategoryList" class="iter-category-list"></div>
+      </div>
+
+      <!-- ── TAB: Summary ──────────────────────────────────────────── -->
+      <div class="tab-content" id="tab-summary">
+        <div class="empty-state" id="emptySummary">
+          <div class="empty-icon">📋</div>
+          <p class="empty-title">No summary yet</p>
+          <p class="empty-desc">Run a full scan to generate an executive summary and vulnerability report.</p>
+        </div>
+        <div id="summaryContent" class="summary-content hidden"></div>
+      </div>
+
+      <!-- ── TAB: Reports ──────────────────────────────────────────── -->
+      <div class="tab-content" id="tab-reports">
+        <div class="reports-toolbar">
+          <button class="btn-sm" onclick="loadReportsList()">↻ Refresh</button>
+        </div>
+        <div class="empty-state" id="emptyReports">
+          <div class="empty-icon">🗂️</div>
+          <p class="empty-title">No saved reports yet</p>
+          <p class="empty-desc">Reports are automatically saved after every full scan.</p>
+        </div>
+        <div id="reportsList" class="reports-list"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ── TOAST ──────────────────────────────────────────────────────────── -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- ── MODAL: Response Viewer ──────────────────────────────────────────── -->
+  <div id="modal" class="modal-overlay hidden" onclick="closeModal(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">Response Details</h3>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

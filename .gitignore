@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets
+.env
+.env.local
+*.pem
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Generated reports (runtime output)
+reports/*.html
+reports/index.json
