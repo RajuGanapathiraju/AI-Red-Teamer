@@ -1,10 +1,10 @@
 # AI Red Teamer
 
-An OWASP LLM Top 10 vulnerability scanner for LLM-integrated applications. Uses AWS Bedrock (Claude) to **generate** context-aware red team attack prompts, **fire** them at a target endpoint, **analyze** responses for vulnerabilities, and produce shareable HTML reports — with two scan modes: a standard breadth scan and an adaptive iterative scan.
+An OWASP LLM Top 10 vulnerability scanner for LLM-integrated applications. Uses AWS Bedrock (Claude) to **generate** context-aware red team attack prompts, **fire** them at a target endpoint, **analyze** responses for vulnerabilities, and produce shareable HTML reports — with two scan modes: a basic breadth scan and an adaptive session-aware scan.
 
 ## Features
 
-- **Two scan modes** — Standard (breadth) and Iterative (adaptive, session-aware)
+- **Two scan modes** — Basic (breadth) and Adaptive (session-aware)
 - **Context-aware prompt generation** — describe your app and Claude crafts realistic, targeted attacks
 - **OWASP LLM Top 10 coverage**:
   - `LLM01` Prompt Injection
@@ -32,20 +32,20 @@ An OWASP LLM Top 10 vulnerability scanner for LLM-integrated applications. Uses 
 
 ## Scan Modes
 
-### Standard Scan
+### Basic Scan
 Generate a batch of attack prompts upfront, review them, then fire all of them sequentially.
 
 1. Set **Prompts per category** (1–5)
 2. Click **Generate Prompts** — review in the Attack Prompts tab
-3. Click **Run Full Scan** — streams results live in the Scan Results tab
+3. Click **Basic Scan** — streams results live in the Scan Results tab
 
-### Iterative Scan
-Adaptive, session-aware scanning. No pre-generation needed — prompts are generated and mutated on the fly.
+### Adaptive Scan
+Session-aware scanning. No pre-generation needed — prompts are generated and mutated on the fly.
 
 1. Set **Max rounds per category** (2–10, default 5)
-2. Click **Iterative Scan**
+2. Click **Adaptive Scan**
 
-For each OWASP category:
+For each selected category:
 - **Round 1** — generates a fresh, context-aware attack
 - **If defended** → reads the app's refusal/response, mutates the technique, tries again (marked **Adaptive**)
 - **Stops early** as soon as a vulnerability is found for that category
@@ -53,7 +53,7 @@ For each OWASP category:
 
 Results show a round-by-round timeline per category. The model learns from each failed attempt — if direct injection was blocked, it automatically switches to roleplay, encoding, indirect injection, multi-step attacks, etc.
 
-| | Standard | Iterative |
+| | Basic | Adaptive |
 |---|---|---|
 | Pre-generate prompts | Yes | No |
 | Adapts to defenses | No | Yes |
@@ -89,8 +89,8 @@ red-teamer/
 | `POST` | `/api/generate-prompts` | Generate attack prompts for selected categories |
 | `POST` | `/api/run-attack` | Send a single attack to the target |
 | `POST` | `/api/analyze` | Analyze a single response for vulnerabilities |
-| `POST` | `/api/scan` | Full scan — SSE stream of attack + analysis results |
-| `POST` | `/api/iterative-scan` | Iterative adaptive scan — SSE stream per round |
+| `POST` | `/api/scan` | Basic scan — SSE stream of attack + analysis results |
+| `POST` | `/api/iterative-scan` | Adaptive scan — SSE stream per round |
 | `GET` | `/api/reports` | List saved report metadata |
 
 ## Prerequisites
