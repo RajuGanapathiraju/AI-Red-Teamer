@@ -139,10 +139,11 @@ Open **http://localhost:3001** in your browser.
 
 ## Usage
 
-1. **Application Context** — describe the target LLM app in plain English (what it does, what data it accesses, what it should/shouldn't do)
-2. **Target Request** — enter the endpoint URL, HTTP method, headers (Burp format supported), and JSON body with `{{INPUT}}` where the attack prompt should be injected
-3. **Select categories** — pick specific categories (OWASP LLM Top 10 and/or Agentic) or leave all unchecked to test everything
-4. **Choose scan mode** and run
+1. **Target** — give the target agent / application a name (shown in the summary and saved reports)
+2. **Application Context** — describe the target LLM app in plain English (what it does, what data it accesses, what it should/shouldn't do)
+3. **Target Request** — enter the endpoint URL, HTTP method, headers (Burp format supported), and JSON body with `{{INPUT}}` where the attack prompt should be injected
+4. **Select categories** — pick specific categories (OWASP LLM Top 10 and/or Agentic) or leave all unchecked to test everything
+5. **Choose scan mode** and run
 
 ## Disclaimer
 
