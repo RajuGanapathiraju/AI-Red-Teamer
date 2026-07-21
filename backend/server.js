@@ -110,7 +110,7 @@ app.post("/api/analyze", async (req, res) => {
 // Streams results via SSE
 
 app.post("/api/scan", async (req, res) => {
-  const { appContext, targetRequest, prompts } = req.body;
+  const { appContext, targetRequest, prompts, targetName } = req.body;
 
   if (!appContext || !targetRequest?.url || !Array.isArray(prompts) || prompts.length === 0) {
     return res.status(400).json({ error: "appContext, targetRequest, and prompts[] are required." });
@@ -166,7 +166,7 @@ app.post("/api/scan", async (req, res) => {
 
   // Auto-save report to disk
   try {
-    const meta = saveReport({ appContext, targetRequest, prompts, results: allResults, summary });
+    const meta = saveReport({ appContext, targetRequest, prompts, results: allResults, summary, targetName });
     send("saved", { filename: meta.filename, id: meta.id });
   } catch (err) {
     console.error("[scan] report save failed:", err.message);
@@ -202,7 +202,7 @@ app.get("/api/reports", (req, res) => {
 //   done          { totalCategories, vulnerable, totalRoundsUsed }
 
 app.post("/api/iterative-scan", async (req, res) => {
-  const { appContext, targetRequest, categories = [], maxRounds = 5 } = req.body;
+  const { appContext, targetRequest, categories = [], maxRounds = 5, targetName } = req.body;
 
   if (!appContext || typeof appContext !== "string" || appContext.trim().length < 10) {
     return res.status(400).json({ error: "appContext must be at least 10 characters." });
@@ -277,7 +277,7 @@ app.post("/api/iterative-scan", async (req, res) => {
   // Save report
   try {
     const allPrompts = flatResults.map((r) => r.prompt);
-    const meta = saveReport({ appContext: appContext.trim(), targetRequest, prompts: allPrompts, results: flatResults, summary });
+    const meta = saveReport({ appContext: appContext.trim(), targetRequest, prompts: allPrompts, results: flatResults, summary, targetName });
     send("saved", { filename: meta.filename, id: meta.id });
   } catch (err) {
     console.error("[iterative-scan] report save failed:", err.message);

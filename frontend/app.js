@@ -56,26 +56,50 @@ function renderCategoryList(categories) {
   const container = document.getElementById("categoryList");
   container.innerHTML = "";
 
+  // Group categories by their `group` field (falls back to a single default group)
+  const groups = {};
   Object.values(categories).forEach((cat) => {
-    const item = document.createElement("div");
-    item.className = "category-item";
-    item.dataset.catId = cat.id;
+    const g = cat.group || "Categories";
+    (groups[g] = groups[g] || []).push(cat);
+  });
 
-    item.innerHTML = `
-      <input type="checkbox" id="cat-${cat.id}" value="${cat.id}" />
-      <div class="cat-info">
-        <div class="cat-id" style="color:${cat.color}">${cat.id}</div>
-        <div class="cat-name">${cat.name}</div>
-        <div class="cat-desc">${cat.description}</div>
-      </div>`;
-
-    item.addEventListener("click", (e) => {
-      const cb = item.querySelector("input");
-      if (e.target !== cb) cb.checked = !cb.checked;
-      item.classList.toggle("selected", cb.checked);
+  Object.entries(groups).forEach(([groupName, cats]) => {
+    const header = document.createElement("div");
+    header.className = "category-group-header";
+    header.innerHTML = `
+      <span class="category-group-title">${groupName}</span>
+      <span class="category-group-toggle" data-group="${groupName}">Select all</span>`;
+    header.querySelector(".category-group-toggle").addEventListener("click", () => {
+      const boxes = cats.map((c) => document.getElementById(`cat-${c.id}`)).filter(Boolean);
+      const allChecked = boxes.every((b) => b.checked);
+      boxes.forEach((b) => {
+        b.checked = !allChecked;
+        b.closest(".category-item").classList.toggle("selected", b.checked);
+      });
     });
+    container.appendChild(header);
 
-    container.appendChild(item);
+    cats.forEach((cat) => {
+      const item = document.createElement("div");
+      item.className = "category-item";
+      item.dataset.catId = cat.id;
+
+      item.innerHTML = `
+        <input type="checkbox" id="cat-${cat.id}" value="${cat.id}" />
+        <div class="cat-info">
+          <div class="cat-id" style="color:${cat.color}">${cat.id}</div>
+          <div class="cat-name">${cat.name}</div>
+          <div class="cat-desc">${cat.description}</div>
+        </div>`;
+
+      item.addEventListener("click", (e) => {
+        const cb = item.querySelector("input");
+        if (e.target !== cb) cb.checked = !cb.checked;
+        item.classList.toggle("selected", cb.checked);
+      });
+
+      container.appendChild(item);
+    });
   });
 }
 
@@ -534,8 +558,10 @@ function renderSummary() {
     critical: "🔴", high: "🟠", medium: "🟡", low: "🟢", minimal: "✅", unknown: "❔",
   };
   const riskColor = riskColorMap[s.overall_risk] || riskColorMap.unknown;
+  const targetName = document.getElementById("targetName").value.trim();
 
   container.innerHTML = `
+    ${targetName ? `<div class="summary-target-name">🏷️ ${escHtml(targetName)}</div>` : ""}
     <div class="summary-stats">
       <div class="stat-card">
         <div class="stat-value" style="color:var(--text)">${total}</div>
@@ -685,6 +711,7 @@ async function loadReportsList() {
         <div class="report-card-header">
           <span class="report-card-icon">📋</span>
           <div class="report-card-meta">
+            ${r.target_name ? `<div class="report-card-target">${escHtml(r.target_name)}</div>` : ""}
             <div class="report-card-url">${escHtml(r.url || "Unknown URL")}</div>
             <div class="report-card-date">${date}</div>
           </div>
@@ -793,8 +820,11 @@ function copyPrompt(promptId) {
 
 function getCatColor(catId) {
   const map = {
-    LLM01: "#ef4444", LLM02: "#f97316", LLM04: "#eab308",
-    LLM06: "#a855f7", LLM07: "#3b82f6", LLM08: "#ec4899", LLM09: "#14b8a6",
+    LLM01: "#ef4444", LLM02: "#f97316", LLM03: "#d946ef", LLM04: "#eab308",
+    LLM05: "#84cc16", LLM06: "#a855f7", LLM07: "#3b82f6", LLM08: "#ec4899",
+    LLM09: "#14b8a6", LLM10: "#06b6d4",
+    AGT01: "#6366f1", AGT02: "#8b5cf6", AGT03: "#0ea5e9", AGT04: "#f43f5e",
+    AGT05: "#22c55e", AGT06: "#10b981", AGT07: "#e879f9",
   };
   return map[catId] || "var(--border)";
 }
@@ -887,10 +917,11 @@ async function runIterativeScan() {
   let categoriesDone = 0;
 
   try {
+    const targetName = document.getElementById("targetName").value.trim();
     const response = await fetch(`${API}/iterative-scan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ appContext, targetRequest, categories, maxRounds }),
+      body: JSON.stringify({ appContext, targetRequest, categories, maxRounds, targetName }),
     });
 
     if (!response.ok) {
@@ -969,18 +1000,18 @@ async function runIterativeScan() {
         const vulnCount = Object.values(state.iterResults).filter((r) => r.status === "found").length;
         updateBadge("iterative", vulnCount);
         showToast(
-          `Iterative scan done: ${data.vulnerable}/${data.totalCategories} categories vulnerable · ${data.totalRoundsUsed} total rounds.`,
+          `Adaptive scan done: ${data.vulnerable}/${data.totalCategories} categories vulnerable · ${data.totalRoundsUsed} total rounds.`,
           data.vulnerable > 0 ? "error" : "success"
         );
         setTimeout(() => switchTab("summary"), 1000);
       }
     }
   } catch (err) {
-    showToast(`Iterative scan failed: ${err.message}`, "error");
+    showToast(`Adaptive scan failed: ${err.message}`, "error");
   } finally {
     state.iterScanning = false;
     btnIter.disabled = false;
-    btnIter.innerHTML = `<span class="btn-icon">⟳</span> Iterative Scan`;
+    btnIter.innerHTML = `<span class="btn-icon">⟳</span> Adaptive Scan`;
     btnScan.disabled = false;
     btnGen.disabled  = false;
   }
@@ -1122,10 +1153,11 @@ window.runFullScan = async function () {
   });
 
   try {
+    const targetName = document.getElementById("targetName").value.trim();
     const response = await fetch(`${API}/scan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ appContext, targetRequest, prompts: state.prompts }),
+      body: JSON.stringify({ appContext, targetRequest, prompts: state.prompts, targetName }),
     });
 
     if (!response.ok) {

@@ -41,15 +41,18 @@ const RISK_BG = {
   low: "#eab30815", minimal: "#00e5a015", unknown: "#64748b15",
 };
 const CAT_COLOR = {
-  LLM01: "#ef4444", LLM02: "#f97316", LLM04: "#eab308",
-  LLM06: "#a855f7", LLM07: "#3b82f6", LLM08: "#ec4899", LLM09: "#14b8a6",
+  LLM01: "#ef4444", LLM02: "#f97316", LLM03: "#d946ef", LLM04: "#eab308",
+  LLM05: "#84cc16", LLM06: "#a855f7", LLM07: "#3b82f6", LLM08: "#ec4899",
+  LLM09: "#14b8a6", LLM10: "#06b6d4",
+  AGT01: "#6366f1", AGT02: "#8b5cf6", AGT03: "#0ea5e9", AGT04: "#f43f5e",
+  AGT05: "#22c55e", AGT06: "#10b981", AGT07: "#e879f9",
 };
 const SEV_COLOR = {
   critical: "#ff4444", high: "#ef4444", medium: "#f97316",
   low: "#eab308", none: "#00e5a0",
 };
 
-function generateHtml({ id, createdAt, appContext, targetRequest, prompts, results, summary, stats }) {
+function generateHtml({ id, createdAt, appContext, targetRequest, prompts, results, summary, stats, targetName }) {
   const date        = new Date(createdAt).toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" });
   const risk        = stats.overall_risk || "unknown";
   const riskColor   = RISK_COLOR[risk]  || RISK_COLOR.unknown;
@@ -149,7 +152,7 @@ function generateHtml({ id, createdAt, appContext, targetRequest, prompts, resul
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>AI Red Team Report — ${esc(urlSlug(targetRequest.url))} — ${new Date(createdAt).toLocaleDateString()}</title>
+<title>AI Red Team Report — ${targetName ? esc(targetName) : esc(urlSlug(targetRequest.url))} — ${new Date(createdAt).toLocaleDateString()}</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -253,6 +256,7 @@ td.hv{color:var(--text);font-family:monospace;word-break:break-all}
   <div class="report-header">
     <div>
       <div class="report-title">🔴 AI Red Team Report</div>
+      ${targetName ? `<div class="report-subtitle" style="font-size:16px;font-weight:700;color:var(--text);margin-top:2px">🏷️ ${esc(targetName)}</div>` : ""}
       <div class="report-subtitle">${esc(targetRequest.url)}</div>
       <div class="report-subtitle" style="margin-top:4px">${date}</div>
     </div>
@@ -361,7 +365,7 @@ td.hv{color:var(--text);font-family:monospace;word-break:break-all}
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-function saveReport({ appContext, targetRequest, prompts, results, summary }) {
+function saveReport({ appContext, targetRequest, prompts, results, summary, targetName }) {
   const id        = uuidv4();
   const createdAt = new Date().toISOString();
   const slug      = urlSlug(targetRequest?.url || "");
@@ -378,7 +382,7 @@ function saveReport({ appContext, targetRequest, prompts, results, summary }) {
     overall_risk: summary?.overall_risk || "unknown",
   };
 
-  const html = generateHtml({ id, createdAt, appContext, targetRequest, prompts, results, summary, stats });
+  const html = generateHtml({ id, createdAt, appContext, targetRequest, prompts, results, summary, stats, targetName });
   fs.writeFileSync(filepath, html, "utf8");
 
   // Update index
@@ -386,6 +390,7 @@ function saveReport({ appContext, targetRequest, prompts, results, summary }) {
   index.unshift({
     id, filename, created_at: createdAt,
     url: targetRequest?.url,
+    target_name: targetName || null,
     app_context_preview: (appContext || "").slice(0, 120),
     stats,
     summary_preview: (summary?.summary || "").slice(0, 200),

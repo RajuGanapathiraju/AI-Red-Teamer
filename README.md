@@ -6,14 +6,25 @@ An OWASP LLM Top 10 vulnerability scanner for LLM-integrated applications. Uses 
 
 - **Two scan modes** — Standard (breadth) and Iterative (adaptive, session-aware)
 - **Context-aware prompt generation** — describe your app and Claude crafts realistic, targeted attacks
-- **OWASP LLM Top 10 coverage** across 7 categories:
+- **OWASP LLM Top 10 coverage**:
   - `LLM01` Prompt Injection
   - `LLM02` Insecure Output Handling
+  - `LLM03` Training Data Poisoning
   - `LLM04` Model Denial of Service
+  - `LLM05` Supply Chain Vulnerabilities
   - `LLM06` Sensitive Information Disclosure
   - `LLM07` Insecure Plugin Design
   - `LLM08` Excessive Agency
   - `LLM09` Overreliance
+  - `LLM10` Model Theft / Extraction
+- **Agentic / Tool-Use coverage** (for agents with tool access & write capabilities):
+  - `AGT01` Tool / Function Misuse
+  - `AGT02` Confirmation Bypass
+  - `AGT03` Multi-Step Action Chaining
+  - `AGT04` Privilege Escalation via Tools
+  - `AGT05` Rate / Volume Limit Bypass
+  - `AGT06` Cross-Tenant Data Access
+  - `AGT07` Memory / Session Poisoning
 - **Dual-model pipeline** — Claude Opus 4.8 generates attacks, Claude Sonnet 5 analyzes responses
 - **Real-time streaming** — results stream live via Server-Sent Events (SSE)
 - **HTML reports** — auto-saved after every scan, viewable and downloadable from the UI
@@ -130,7 +141,7 @@ Open **http://localhost:3001** in your browser.
 
 1. **Application Context** — describe the target LLM app in plain English (what it does, what data it accesses, what it should/shouldn't do)
 2. **Target Request** — enter the endpoint URL, HTTP method, headers (Burp format supported), and JSON body with `{{INPUT}}` where the attack prompt should be injected
-3. **Select categories** — pick specific OWASP categories or leave all unchecked to test all 7
+3. **Select categories** — pick specific categories (OWASP LLM Top 10 and/or Agentic) or leave all unchecked to test everything
 4. **Choose scan mode** and run
 
 ## Disclaimer

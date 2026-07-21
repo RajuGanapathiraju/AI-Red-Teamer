@@ -32,6 +32,17 @@
     <aside class="sidebar">
       <div class="sidebar-inner">
 
+        <!-- Target Name -->
+        <div class="section">
+          <div class="section-header">
+            <span class="section-icon">🏷️</span>
+            <h2>Target</h2>
+          </div>
+          <label class="field-label">Agent / Application name</label>
+          <input id="targetName" type="text" class="input"
+            placeholder="e.g. Support Agent" />
+        </div>
+
         <!-- App Context -->
         <div class="section">
           <div class="section-header">
@@ -103,7 +114,7 @@
             <input id="countPerCategory" type="range" min="1" max="5" value="3" class="range" />
             <span id="countLabel" class="count-label">3</span>
           </div>
-          <label class="field-label" style="margin-top:14px">Max rounds per category <span class="optional">(iterative scan)</span></label>
+          <label class="field-label" style="margin-top:14px">Max rounds per category <span class="optional">(adaptive scan)</span></label>
           <div class="row-2 align-center">
             <input id="maxRounds" type="range" min="2" max="10" value="5" class="range" />
             <span id="maxRoundsLabel" class="count-label">5</span>
@@ -116,10 +127,10 @@
             <span class="btn-icon">⚙</span> Generate Prompts
           </button>
           <button id="btnScan" class="btn btn-danger" onclick="runFullScan()" disabled>
-            <span class="btn-icon">▶</span> Run Full Scan
+            <span class="btn-icon">▶</span> Basic Scan
           </button>
           <button id="btnIterative" class="btn btn-iterative" onclick="runIterativeScan()">
-            <span class="btn-icon">⟳</span> Iterative Scan
+            <span class="btn-icon">⟳</span> Adaptive Scan
           </button>
         </div>
 
@@ -138,7 +149,7 @@
           Scan Results <span class="tab-badge" id="badgeResults">0</span>
         </button>
         <button class="tab" data-tab="iterative" onclick="switchTab('iterative')">
-          Iterative Scan <span class="tab-badge" id="badgeIterative">0</span>
+          Adaptive Scan <span class="tab-badge" id="badgeIterative">0</span>
         </button>
         <button class="tab" data-tab="summary" onclick="switchTab('summary')">
           Summary Report
@@ -163,7 +174,7 @@
         <div class="empty-state" id="emptyResults">
           <div class="empty-icon">📊</div>
           <p class="empty-title">No scan results yet</p>
-          <p class="empty-desc">Generate prompts then click <strong>Run Full Scan</strong> to test for vulnerabilities.</p>
+          <p class="empty-desc">Generate prompts then click <strong>Basic Scan</strong> to test for vulnerabilities.</p>
         </div>
 
         <!-- Progress bar -->
@@ -180,12 +191,12 @@
         <div id="resultsList" class="results-list"></div>
       </div>
 
-      <!-- ── TAB: Iterative Scan ──────────────────────────────────── -->
+      <!-- ── TAB: Adaptive Scan ─────────────────────────────────── -->
       <div class="tab-content" id="tab-iterative">
         <div class="empty-state" id="emptyIterative">
           <div class="empty-icon">⟳</div>
-          <p class="empty-title">No iterative scan yet</p>
-          <p class="empty-desc">Click <strong>Iterative Scan</strong> to run an adaptive session for each OWASP category. If round 1 doesn't trigger a vulnerability, the AI mutates its technique and tries again — up to the max rounds you set.</p>
+          <p class="empty-title">No adaptive scan yet</p>
+          <p class="empty-desc">Click <strong>Adaptive Scan</strong> to run an adaptive session for each OWASP category. If round 1 doesn't trigger a vulnerability, the AI mutates its technique and tries again — up to the max rounds you set.</p>
         </div>
 
         <!-- Iterative progress bar -->
